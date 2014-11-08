@@ -1,7 +1,15 @@
 #include <stdio.h>
 
-#define MAX_INPUT   100
-#define MAX_LINES   20
+#define MAX_INPUT       100
+#define MAX_LINES       20
+#define QUEUE_ELEMENTS  100
+#define QUEUE_SIZE      (QUEUE_ELEMENTS + 1)
+
+int Queue[QUEUE_SIZE];
+int queueIn, queueOut;
+int enqueue(int new);
+int dequeue();
+void printQueue(void);
 
 int main(int argc, char *argv[])
 {
@@ -56,4 +64,26 @@ int main(int argc, char *argv[])
     }
 
     return 0;
+}
+
+int enqueue(int new)
+{
+    if(queueIn == ((queueOut - 1 + QUEUE_SIZE) % QUEUE_SIZE))
+        return -1; /* Queue is full */
+    
+    Queue[queueIn] = new;
+    queueIn = (queueIn + 1) % QUEUE_SIZE;
+
+    return 0; /* Successfully enqueued */
+}
+
+int dequeue(int * old)
+{
+    if (queueIn == queueOut)
+        return -1; /* Queue is empty - nothing to get */
+
+    *old = Queue[queueOut];
+    queueOut = (queueOut + 1) % QUEUE_SIZE;
+
+    return 0; /* Successfully dequeued */
 }
