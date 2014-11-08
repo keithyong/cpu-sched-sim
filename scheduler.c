@@ -8,7 +8,7 @@
 int Queue[QUEUE_SIZE];
 int queueIn, queueOut;
 int enqueue(int new);
-int dequeue();
+int dequeue(int * old);
 void printQueue(void);
 
 int main(int argc, char *argv[])
@@ -24,6 +24,9 @@ int main(int argc, char *argv[])
 
     /* The number of cpu bursts for ith process */
     int numcpu[MAX_LINES];
+
+    /* Number of processes that was found */
+    int numProcesses;
     
     /* Input block */
     {
@@ -37,7 +40,7 @@ int main(int argc, char *argv[])
         while (scanf("%d%c", &x, &ch) != EOF){
             input[lc][c] = x;
             c++;
-            if (ch == '\n'){
+            if (ch == '\n' && ((ch + 1) != EOF)){
                 at[lc] = input[lc][0];
                 numcpu[lc] = input[lc][1];
                 for (i = 2; i < c; i++)
@@ -46,19 +49,23 @@ int main(int argc, char *argv[])
                 lc++;
             }
         }
+        numProcesses = lc;
         printf("\nat:\n");
-        for (i = 0; i < 10; i++)
+        for (i = 0; i < numProcesses; i++)
             printf("[%d]", at[i]);
 
-        printf("numcpu:\n");
-        for (i = 0; i < 10; i++)
+        printf("\n\nnumcpu:\n");
+        for (i = 0; i < numProcesses; i++)
             printf("[%d]", numcpu[i]);
 
-        printf("cpu:\n");
-        for (i = 0; i < 10; i++)
-            for (j = 0; j < 10; j++)
+        printf("\n\ncpu:\n");
+        for (i = 0; i < numProcesses; i++){
+            for (j = 0; j < (numcpu[i] * 2); j++)
                 printf("[%d]", cpu[i][j]);
             putchar('\n');
+        }
+
+        printf("\nnumProcesses = %d\n", numProcesses);
 
         putchar('\n');
     }
