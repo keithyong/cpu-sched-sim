@@ -14,6 +14,8 @@ int dequeue(int * old);
 int isQueueEmpty();
 void printQueue(void);
 
+void initArrays();
+void printArray(int * arr, int len);
 int findIndexWithMin(int * arr, int n);
 void fcfs();
 
@@ -43,6 +45,11 @@ int numProcesses;
  * then it is in state++ */
 int processState[MAX_LINES];
 
+/* When a process is done running, update waitUntil 
+ * to represent when the process will start running
+ * again. */
+int waitUntil[MAX_LINES];
+
 int main(int argc, char *argv[])
 {
 
@@ -69,15 +76,15 @@ int main(int argc, char *argv[])
         numProcesses = lc;
         printf("\nat:\n");
         for (i = 0; i < numProcesses; i++)
-            printf("[%d]", at[i]);
+            printf("[%d]\n", at[i]);
 
         printf("\n\nnumcpu:\n");
         for (i = 0; i < numProcesses; i++)
-            printf("[%d]", numcpu[i]);
+            printf("[%d]\n", numcpu[i]);
 
         printf("\n\ncpu:\n");
         for (i = 0; i < numProcesses; i++){
-            for (j = 0; j < (numcpu[i] * 2); j++)
+            for (j = 0; j < (numcpu[i] * 2 - 1); j++)
                 printf("[%d]", cpu[i][j]);
             putchar('\n');
         }
@@ -88,10 +95,8 @@ int main(int argc, char *argv[])
     }
     /* End of input block */
 
-    /* Initilize process state array.
-     * Every process starts at zero. */
-    for (i = 0; i < numProcesses; i++)
-        processState[i] = 0;
+    /* Fills some arrays starting numbers*/
+    initArrays();
     
     /* Do fcfs. TODO: Handle user shell input */
     fcfs();
@@ -100,36 +105,64 @@ int main(int argc, char *argv[])
 
 void fcfs()
 {
+    printf("~ First Come First Serve ~\n");
     /* Find the first process to arrive */
     int firstArrivedProcess = findIndexWithMin(at, numProcesses);
 
-    /* First process is actually 0, not 1 */
-    int time = 0;
+    int time = -1;
     int done = 0;
 
     /* CPU is free at the beginning */
     int isCPUFree = 1;
     int currProcess;
+
+    /* Current running process */
     int deq;
+
     int dequeueRet;
     int runUntil;
+
     while (!done)
     {
+        time++;
         printf("Time: %d\n", time);
 
         /* Just a dummy end time for now so it is not
          * an infinite loop. */
-        if (time == 30){
+        if (time == 100){
             done = 1;
         }
 
-        /* Check for all arrival times, if current time
-         * is equal to arrival time then enqueue it */
+        /* A process is finished its burst */
+        if (time == runUntil){
+            isCPUFree = 1;
+            processState[deq]++;
+            /* If the process burst i is still less than
+             * total number of bursts, put in waiting */
+            if (processState[deq] < numcpu[deq])
+            {
+                waitUntil[deq] = time + cpu[deq][processState[deq]];
+                printf("P%d waiting for IO until %d\n", deq + 1, waitUntil[deq]);
+            }
+            else {
+                printf("P%d done running.\n", deq + 1);
+            }
+            /* Enqueue if the process has more to go */
+        }
+
+        /* For all processes... */
         for (i = 0; i < numProcesses; i++)
         {
+            /* If Pi has arrived, put in ready queue */ 
             if (time == at[i])
             {
                 printf("P%d has arrived\n", i + 1);
+                enqueue(i);
+            }
+            /* If Pi is done waiting, put in ready queue */
+            if (time == waitUntil[i]){
+                processState[i]++;
+                printf("P%d has completed IO\n", i + 1);
                 enqueue(i);
             }
         }
@@ -138,24 +171,16 @@ void fcfs()
         if (isCPUFree == 1){
             /* Attempt to dequeue from the ready queue */
             dequeueRet = dequeue(&deq);
-            /* If dequeue is successful, run process deq*/
+
+            /* If dequeue is successful, run process 
+             * that was dequeued */
             if (dequeueRet == 0){
-                printf("P%d is running\n", deq + 1);
-                runUntil = time + cpu[deq][processState[i]];
-                processState[i]++;
+                runUntil = time + cpu[deq][processState[deq]];
+                printf("P%d is running until %d\n", deq + 1, runUntil);
                 isCPUFree = 0;
             }
         }
-        
-
-        /* A process is finished its burst */
-        if (time == runUntil){
-            isCPUFree = 1;
-            printf("P%d done running.\n", deq + 1);
-        }
-        time++;
     }
-    printQueue();
 }
 
 int enqueue(int new)
@@ -166,7 +191,7 @@ int enqueue(int new)
     Queue[queueIn] = new;
     queueIn = (queueIn + 1) % QUEUE_SIZE;
 
-    printf("P%d put in queue\n", new + 1);
+    printf("P%d put in ready queue\n", new + 1);
     return 0; /* Successfully enqueued */
 }
 
@@ -201,6 +226,16 @@ void printQueue(void)
     putchar('\n');
 }
 
+void initArrays()
+{
+    for (i = 0; i < MAX_LINES; i++)
+    {
+        processState[i] = 0;
+        waitUntil[i] = -1;
+    }
+}
+/* Given an array of integers and length, returns the
+ * index that has the smallest integer in that array. */
 int findIndexWithMin(int * arr, int len)
 {
     int i;
@@ -216,4 +251,12 @@ int findIndexWithMin(int * arr, int len)
     }
 
     return minIndex;
+}
+
+void printArray(int * arr, int len)
+{
+    int i;
+    for (i = 0; i < len; i++)
+        printf("[%d]", arr[i]);
+    putchar('\n');
 }
