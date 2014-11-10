@@ -122,16 +122,13 @@ void fcfs()
     int dequeueRet;
     int runUntil;
 
+    /* If allDoneSum = numProcesses, then all processes are done running */
+    int allDoneSum = 0;
+
     while (!done)
     {
         time++;
         printf("Time: %d\n", time);
-
-        /* Just a dummy end time for now so it is not
-         * an infinite loop. */
-        if (time == 100){
-            done = 1;
-        }
 
         /* A process is finished its burst */
         if (time == runUntil){
@@ -145,12 +142,19 @@ void fcfs()
                 printf("P%d waiting for IO until %d\n", deq + 1, waitUntil[deq]);
             }
             else {
-                printf("P%d done running.\n", deq + 1);
+                printf("P%d done running all its CPU bursts.\n", deq + 1);
+                allDoneSum++;
+
+                /* Check if all processes are done running */
+                if (allDoneSum == numProcesses){
+                    done = 1;
+                    printf("All processes are done running.\n");
+                }
             }
             /* Enqueue if the process has more to go */
         }
 
-        /* For all processes... */
+        /* For all processes... O(n)*/
         for (i = 0; i < numProcesses; i++)
         {
             /* If Pi has arrived, put in ready queue */ 
