@@ -25,6 +25,9 @@ int i, j;
 /* Quantum, and context switch cost */
 int quantum, context;
 
+/* Scheduling algorithm */
+char * schedAlgo;
+
 /* Arrays that input will go into */
 int input[MAX_LINES][MAX_INPUT];
 
@@ -69,9 +72,11 @@ int main(int argc, char *argv[])
             return 0;
         }
 
-        sscanf(argv[2], "%d", &quantum);
-        sscanf(argv[3], "%d", &context);
-        printf("Quantum = %d, context = %d\n", quantum, context);
+        /* TODO: Algorithm picking logic */
+        schedAlgo = argv[2];
+        sscanf(argv[3], "%d", &quantum);
+        sscanf(argv[4], "%d", &context);
+        printf("schedAlgo = %s, Quantum = %d, context = %d\n", schedAlgo, quantum, context);
 
         /* Convert stdin into various input arrays */
         while (fscanf(fp, "%d%c", &x, &ch) != EOF){
