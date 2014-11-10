@@ -22,6 +22,9 @@ void fcfs();
 /* Used for for loops */
 int i, j;
 
+/* Quantum, and context switch cost */
+int quantum, context;
+
 /* Arrays that input will go into */
 int input[MAX_LINES][MAX_INPUT];
 
@@ -52,16 +55,26 @@ int waitUntil[MAX_LINES];
 
 int main(int argc, char *argv[])
 {
-
     /* Input block */
     {
         int x;
         char ch;
         int c = 0;
         int lc = 0;
+        FILE *fp;
+
+        if ((fp = fopen(argv[1], "r")) == NULL)
+        {
+            printf("File not found!\n");
+            return 0;
+        }
+
+        sscanf(argv[2], "%d", &quantum);
+        sscanf(argv[3], "%d", &context);
+        printf("Quantum = %d, context = %d\n", quantum, context);
 
         /* Convert stdin into various input arrays */
-        while (scanf("%d%c", &x, &ch) != EOF){
+        while (fscanf(fp, "%d%c", &x, &ch) != EOF){
             input[lc][c] = x;
             c++;
             if (ch == '\n' && ((ch + 1) != EOF)){
