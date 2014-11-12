@@ -12,6 +12,7 @@ int queueIn, queueOut;
 int enqueue(int new);
 int dequeue(int * old);
 int isQueueEmpty();
+void initQueue();
 void printQueue(void);
 
 void initArrays();
@@ -21,6 +22,7 @@ void fcfs();
 
 void initfcfs();
 void startContextSwitch();
+void incrementWaitTime(void);
 
 /* Used for for loops */
 int i, j;
@@ -78,6 +80,15 @@ int allDoneSum;
 
 int freshProcess;
 int processWantsToRun;
+
+/* DATA TRACKING ARRAYS */
+/* Completion time - arrival time */
+int turnaroundTime[MAX_LINES];
+/* How much time a process is in the ready queue */
+int waitTime[MAX_LINES];
+int IOWaitTime[MAX_LINES];
+/* Amount of times from a request until the first response is produced */
+int responseTime[MAX_LINES];
 
 int main(int argc, char *argv[])
 {
@@ -157,6 +168,7 @@ void fcfs()
     while (!done)
     {
         time++;
+        incrementWaitTime();
         printf("* Time: %d, ", time);
 
         switch (CPUstate) 
@@ -165,10 +177,10 @@ void fcfs()
                 printf("CPU is free\n");
                 break;
             case 1:
-                printf("CPU is busy context switching\n");
+                printf("CPU is context switching\n");
                 break;
             case 2:
-                printf("CPU is running a process\n");
+                printf("CPU is running P%d\n", deq + 1);
                 break;
         }
 
@@ -177,6 +189,7 @@ void fcfs()
             /* If the context switching is finished */
             if ( CPUstate == 1 )
             {
+                printf("Context switching is finished. CPU is free.\n");
                 /* Then the CPU becomes free */
                 CPUstate = 0;
             }
@@ -188,16 +201,18 @@ void fcfs()
 
                 /* If the process burst i is still less than
                  * total number of bursts, put in waiting */
-                if (processState[deq] < numcpu[deq])
+                if (processState[deq] < (numcpu[deq] * 2) - 1)
                 {
                     waitUntil[deq] = time + cpu[deq][processState[deq]];
+                    IOWaitTime[deq] += cpu[deq][processState[deq]];
                     printf("P%d waiting for IO until %d\n", deq + 1, waitUntil[deq]);
                     /* Of course, pay the context switching cost! */
-                    printf("Putting process back into wait mode, ");
+                    printf("Moving P%d to waitqueue, ", deq + 1);
                     startContextSwitch();
                 }
                 else {
-                    printf("P%d done running all its CPU bursts.\n", deq + 1);
+                    turnaroundTime[deq] = time - at[deq];
+                    printf("P%d done running all its CPU bursts. TAT=%d, Wait Time=%d, I/O Wait=%d, Response Time = %d\n", deq + 1, turnaroundTime[deq], waitTime[deq], IOWaitTime[deq], responseTime[deq]);
                     CPUstate = 0;
                     allDoneSum++;
 
@@ -207,7 +222,6 @@ void fcfs()
                         printf("All processes are done running.\n");
                     }
                 }
-                /* Enqueue if the process has more to go */
             }
         }
 
@@ -262,6 +276,8 @@ void fcfs()
 
         if (( CPUstate == 0 ) && (( processWantsToRun == 1 ) || ( freshProcess == 1 )))
         {
+            if (freshProcess == 1)
+                responseTime[deq] = time - at[deq];
             processWantsToRun = 0;
             freshProcess = 0;
             runUntil = time + cpu[deq][processState[deq]];
@@ -332,22 +348,36 @@ int isQueueEmpty()
     return 0;
 }
 
-void printQueue(void)
+/* For each element in ready queue, increment the wait time */
+void incrementWaitTime(void)
 {
-    printf("Queue: ");
-    int i;
     for(i = queueOut; i <= queueIn; i++)
     {
-        if(Queue[i] != '\0')
-        printf("[%d]", Queue[i]);
+        if(Queue[i] != -1)
+            waitTime[Queue[i]]++;
+    }
+}
+void printQueue(void)
+{
+    printf("Ready Queue: ");
+    int i;
+    for(i = queueOut; i < queueIn; i++)
+    {
+        if(Queue[i] != -1)
+            printf("[%d]", Queue[i]);
     }
     putchar('\n');
 }
 
 void initArrays()
 {
+    initQueue();
     for (i = 0; i < MAX_LINES; i++)
     {
+        turnaroundTime[i] = 0;
+        waitTime[i] = 0;
+        IOWaitTime[i] = 0;
+        responseTime[i] = 0;
         processState[i] = 0;
         waitUntil[i] = -1;
     }
@@ -377,4 +407,11 @@ void printArray(int * arr, int len)
     for (i = 0; i < len; i++)
         printf("[%d]", arr[i]);
     putchar('\n');
+}
+
+void initQueue()
+{
+    int i;
+    for (i = 0; i < QUEUE_SIZE; i++)
+        Queue[i] = -1;
 }
