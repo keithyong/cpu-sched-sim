@@ -19,7 +19,8 @@ void printArray(int * arr, int len);
 int findIndexWithMin(int * arr, int n);
 void fcfs();
 
-void startContextSwitch(int * isSwitching, int * isCPUFr, int * time, int * runUntil);
+void initfcfs();
+void startContextSwitch();
 
 /* Used for for loops */
 int i, j;
@@ -58,8 +59,25 @@ int waitUntil[MAX_LINES];
 /* Running time of process */
 int runningTime[MAX_LINES][MAX_INPUT];
 
+/* FCFS variables */
 /* CPU State. 0 = free, 1 = context switching, 2 = running process */
 int CPUstate;
+
+int time;
+int done;
+
+/* Current running process */
+int deq;
+
+/* Return value from dequeue() */
+int dequeueRet;
+int runUntil;
+
+/* If allDoneSum = numProcesses, then all processes are done running */
+int allDoneSum;
+
+int freshProcess;
+int processWantsToRun;
 
 int main(int argc, char *argv[])
 {
@@ -133,51 +151,18 @@ int main(int argc, char *argv[])
 void fcfs()
 {
     printf("~ First Come First Serve ~\n");
-    /* Find the first process to arrive */
-    int firstArrivedProcess = findIndexWithMin(at, numProcesses);
-
-    int time = -1;
-    int done = 0;
-
-    /* CPU is free at the beginning */
-    int isCPUFree = 1;
-
-    /* From context switch? */
-    int fromConSwitch = 0;
-
-    /* Is the context switch done running? */
-    int isConSwitchDone = 1;
-
-    /* Is the CPU context switching? */
-    int isConSwitching = 0;
-
-    /* Is the CPU running a process? */
-    int isRunningProcess = 0;
-   
-    /* Current running process */
-    int deq;
-
-    /* Return value from dequeue() */
-    int dequeueRet;
-    int runUntil;
-
-    /* If allDoneSum = numProcesses, then all processes are done running */
-    int allDoneSum = 0;
-    
-    int freshProcess = 0;
 
     while (!done)
     {
         time++;
-        printf("Time: %d\n", time);
+        printf("Time: %d, CPUstate = %d\n", time, CPUstate);
 
         /* Dummy failsafe to stop loop */
         if (time > 100)
             done = 1;
 
         /* For all processes, check if any of them have arrived, or 
-         * have finished waiting. Then enqueue them to the rdyqueue,
-         * and do context switching */
+         * have finished waiting.*/
         for (i = 0; i < numProcesses; i++)
         {
             /* If Pi has arrived, put in ready queue */ 
@@ -186,60 +171,61 @@ void fcfs()
                 printf("P%d has arrived\n", i + 1);
                 enqueue(i);
             }
-            /* If Pi is done waiting, put in ready queue */
+            /* If Pi is done waiting, put in ready queue but also do context switching */
             if (time == waitUntil[i])
             {
                 processState[i]++;
                 printf("P%d has completed IO\n", i + 1);
                 enqueue(i);
-                startContextSwitch(&isConSwitching, &isCPUFree, &time, &runUntil);
+                startContextSwitch();
             }
         }
 
-        /* If time == runUntil, and CPU is not context switching 
-         * then we know that process deq is finished its burst */
-        if (( time == runUntil ) && ( isConSwitching == 0 ))
+        if (time == runUntil) 
         {
-            isCPUFree = 1;
-            fromConSwitch = 0;
-            processState[deq]++;
-
-            /* If the process burst i is still less than
-             * total number of bursts, put in waiting */
-            if (processState[deq] < numcpu[deq])
+            /* If the context switching is finished */
+            if ( CPUstate == 1 )
             {
-                waitUntil[deq] = time + cpu[deq][processState[deq]];
-                printf("P%d waiting for IO until %d\n", deq + 1, waitUntil[deq]);
-                startContextSwitch(&isConSwitching, &isCPUFree, &time, &runUntil);
+                /* Then the CPU becomes free */
+                CPUstate = 0;
             }
-            else {
-                printf("P%d done running all its CPU bursts.\n", deq + 1);
-                allDoneSum++;
+            /* If CPU was running a process when we reached this part */
+            else if ( CPUstate == 2 )
+            {
+                /* Then we know that a process must have finished its burst */
+                processState[deq]++;
 
-                /* Check if all processes are done running */
-                if (allDoneSum == numProcesses){
-                    done = 1;
-                    printf("All processes are done running.\n");
+                /* If the process burst i is still less than
+                 * total number of bursts, put in waiting */
+                if (processState[deq] < numcpu[deq])
+                {
+                    waitUntil[deq] = time + cpu[deq][processState[deq]];
+                    printf("P%d waiting for IO until %d\n", deq + 1, waitUntil[deq]);
+                    /* Of course, pay the context switching cost! */
+                    startContextSwitch();
                 }
+                else {
+                    printf("P%d done running all its CPU bursts.\n", deq + 1);
+                    CPUstate = 0;
+                    allDoneSum++;
+
+                    /* Check if all processes are done running */
+                    if (allDoneSum == numProcesses){
+                        done = 1;
+                        printf("All processes are done running.\n");
+                    }
+                }
+                /* Enqueue if the process has more to go */
             }
-            /* Enqueue if the process has more to go */
-        }
-        /* Else if time is runUntil and CPU was context switching
-         * then we know that context switch is done */ 
-        else if (( time == runUntil ) && ( isConSwitching == 1))
-        {
-            fromConSwitch = 1;
         }
 
-
-        /* If the CPU is free and we reached this state not from a context switch */
-        if (( isCPUFree == 1 ) && ( fromConSwitch == 0 ))
+        /* If the CPU is free */
+        if ( CPUstate == 0 )
         {
             /* Attempt to dequeue from the ready queue */
             dequeueRet = dequeue(&deq);
 
-            /* If dequeue is successful, then factor in context switch to 
-             * move process deq into the CPU to run */
+            /* If dequeue was sucessful then we found a process off the rdyqueue to run */
             if (dequeueRet == 0)
             {
                 /* If the process we dequeued is a fresh new process 
@@ -250,33 +236,42 @@ void fcfs()
                 }
                 else
                 {
-                    startContextSwitch(&isConSwitching, &isCPUFree, &time, &runUntil);
+                    processWantsToRun = 1;
+                    startContextSwitch();
                 }
             }
+            else if (allDoneSum == numProcesses)
+            {
+                done = 1;
+                printf("All processes are done running.\n");
+            }
         }
-        /* If CPU is free and we reached this state from a context switch
-         * or from a fresh process then we run the process that was dequeued */
-        if (( isCPUFree == 1 ) && (( fromConSwitch == 1 ) || ( freshProcess == 1 )))
+
+        if (( CPUstate == 0 ) && (( processWantsToRun == 1 ) || ( freshProcess == 1 )))
         {
+            processWantsToRun = 0;
+            freshProcess = 0;
             runUntil = time + cpu[deq][processState[deq]];
             printf("P%d is running until %d\n", deq + 1, runUntil);
-            isCPUFree = 0;
+            CPUstate = 2;
         }
     }
 }
-
-void startContextSwitch(int * isSwitching, int * isCPUFr, int * time, int * runUntil)
+void initfcfs()
 {
-    *isSwitching = 1;
-    *isCPUFr = 0;
-    *runUntil = *runUntil + context;
-    printf("Context switching until %d\n", *runUntil);
+    CPUstate = 0;
+    time = -1;
+    done = 0;
+    runUntil = -1;
+    allDoneSum = 0;
+    freshProcess = 0;
 }
 
-void endContextSwitch(int * isSwitching, int * isCPUFr)
+void startContextSwitch()
 {
-    *isSwitching = 0;
-    *isCPUFr = 1;
+    CPUstate = 1;
+    runUntil = time + context;
+    printf("Context switching until %d\n", runUntil);
 }
 
 int enqueue(int new)
