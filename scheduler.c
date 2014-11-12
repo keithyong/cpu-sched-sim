@@ -23,6 +23,7 @@ void fcfs();
 void initfcfs();
 void startContextSwitch();
 void incrementWaitTime(void);
+void printData();
 
 /* Used for for loops */
 int i, j;
@@ -89,7 +90,8 @@ int waitTime[MAX_LINES];
 int IOWaitTime[MAX_LINES];
 /* Amount of times from a request until the first response is produced */
 int responseTime[MAX_LINES];
-
+/* Amount of time that the CPU has been free */
+int CPUFreeTime;
 int main(int argc, char *argv[])
 {
     if (argc == 1)
@@ -174,6 +176,7 @@ void fcfs()
         switch (CPUstate) 
         {
             case 0:
+                CPUFreeTime++;
                 printf("CPU is free\n");
                 break;
             case 1:
@@ -220,6 +223,7 @@ void fcfs()
                     if (allDoneSum == numProcesses){
                         done = 1;
                         printf("All processes are done running.\n");
+                        printData();
                     }
                 }
             }
@@ -267,11 +271,6 @@ void fcfs()
                     processWantsToRun = 1;
                 }
             }
-            else if (allDoneSum == numProcesses)
-            {
-                done = 1;
-                printf("All processes are done running.\n");
-            }
         }
 
         if (( CPUstate == 0 ) && (( processWantsToRun == 1 ) || ( freshProcess == 1 )))
@@ -294,6 +293,7 @@ void initfcfs()
     runUntil = -1;
     allDoneSum = 0;
     freshProcess = 0;
+    CPUFreeTime = 0;
 }
 
 void startContextSwitch()
@@ -414,4 +414,53 @@ void initQueue()
     int i;
     for (i = 0; i < QUEUE_SIZE; i++)
         Queue[i] = -1;
+}
+
+void printData()
+{
+    printf("\nDATA\n");
+    float firstAT = at[findIndexWithMin(at, numProcesses)];
+    float CPUutil = ((float)(time - CPUFreeTime) / (float)time) * 100;
+    float CPUutilAfter = ((float)(time - (CPUFreeTime - firstAT)) / (float) time) * 100;
+
+    int maxTAT = -1;
+    int sumTAT = 0;
+    float avgTAT;
+    int currTAT;
+
+    int currWT;
+    int sumWT = 0;
+    float avgWT;
+    int maxWT = -1;
+
+    int currRT;
+    int sumRT = 0;
+    float avgRT;
+    int maxRT = -1;
+    for (i = 0; i < numProcesses; i++)
+    {
+        currTAT = turnaroundTime[i];
+        sumTAT += currTAT;
+        if (currTAT > maxTAT)
+            maxTAT = currTAT;
+
+        currWT = waitTime[i];
+        sumWT += currWT;
+        if (currWT > maxWT)
+            maxWT = currWT;
+
+        currRT = responseTime[i];
+        sumRT += currRT;
+        if (currRT > maxRT)
+            maxRT = currRT;
+    }
+    avgTAT = (float) sumTAT / numProcesses;
+    avgWT = (float) sumWT / numProcesses;
+    avgRT = (float) sumRT / numProcesses;
+
+    printf("CPU Utilization = %0.2f percent (including the free CPU time before processes arrived)\n", CPUutil);
+    printf("CPU Utilization = %0.2f percent (after the first process arrived)\n", CPUutilAfter);
+    printf("Avg TAT: %0.2f, Max TAT = %d\n", avgTAT, maxTAT);
+    printf("Avg WT: %0.2f, Max WT = %d\n", avgWT, maxWT);
+    printf("Avg RT: %0.2f, Max RT = %d\n", avgRT, maxRT);
 }
