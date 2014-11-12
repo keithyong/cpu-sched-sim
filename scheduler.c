@@ -120,7 +120,7 @@ int main(int argc, char *argv[])
             }
         }
         numProcesses = lc;
-        printf("\nat:\n");
+        printf("at:\n");
         for (i = 0; i < numProcesses; i++)
             printf("[%d]\n", at[i]);
 
@@ -150,35 +150,26 @@ int main(int argc, char *argv[])
 
 void fcfs()
 {
-    printf("~ First Come First Serve ~\n");
+    printf("--------------------------\n");
+    printf("- First Come First Serve -\n");
+    printf("--------------------------\n");
 
     while (!done)
     {
         time++;
-        printf("Time: %d, CPUstate = %d\n", time, CPUstate);
+        printf("* Time: %d, ", time);
 
-        /* Dummy failsafe to stop loop */
-        if (time > 100)
-            done = 1;
-
-        /* For all processes, check if any of them have arrived, or 
-         * have finished waiting.*/
-        for (i = 0; i < numProcesses; i++)
+        switch (CPUstate) 
         {
-            /* If Pi has arrived, put in ready queue */ 
-            if (time == at[i])
-            {
-                printf("P%d has arrived\n", i + 1);
-                enqueue(i);
-            }
-            /* If Pi is done waiting, put in ready queue but also do context switching */
-            if (time == waitUntil[i])
-            {
-                processState[i]++;
-                printf("P%d has completed IO\n", i + 1);
-                enqueue(i);
-                startContextSwitch();
-            }
+            case 0:
+                printf("CPU is free\n");
+                break;
+            case 1:
+                printf("CPU is busy context switching\n");
+                break;
+            case 2:
+                printf("CPU is running a process\n");
+                break;
         }
 
         if (time == runUntil) 
@@ -202,6 +193,7 @@ void fcfs()
                     waitUntil[deq] = time + cpu[deq][processState[deq]];
                     printf("P%d waiting for IO until %d\n", deq + 1, waitUntil[deq]);
                     /* Of course, pay the context switching cost! */
+                    printf("Putting process back into wait mode, ");
                     startContextSwitch();
                 }
                 else {
@@ -216,6 +208,28 @@ void fcfs()
                     }
                 }
                 /* Enqueue if the process has more to go */
+            }
+        }
+
+
+        /* For all processes, check if any of them have arrived, or 
+         * have finished waiting.*/
+        for (i = 0; i < numProcesses; i++)
+        {
+            /* If Pi has arrived, put in ready queue */ 
+            if (time == at[i])
+            {
+                printf("P%d has arrived\n", i + 1);
+                enqueue(i);
+            }
+            /* If Pi is done waiting, put in ready queue but also do context switching */
+            if (time == waitUntil[i])
+            {
+                processState[i]++;
+                printf("P%d has completed IO\n", i + 1);
+                enqueue(i);
+                printf("Putting process back into ready queue, so ");
+                startContextSwitch();
             }
         }
 
@@ -237,7 +251,6 @@ void fcfs()
                 else
                 {
                     processWantsToRun = 1;
-                    startContextSwitch();
                 }
             }
             else if (allDoneSum == numProcesses)
@@ -269,9 +282,23 @@ void initfcfs()
 
 void startContextSwitch()
 {
-    CPUstate = 1;
-    runUntil = time + context;
-    printf("Context switching until %d\n", runUntil);
+    /* If the CPU is currently context switching */
+    if (CPUstate == 1)
+        runUntil = runUntil + context;
+    else if (CPUstate == 2)
+    {
+        if (time == runUntil)
+        {
+            CPUstate = 1;
+            runUntil = time + context;
+        }
+    }
+    else
+    {
+        CPUstate = 1;
+        runUntil = time + context;
+    }
+    printf("context switching until %d\n", runUntil);
 }
 
 int enqueue(int new)
